@@ -1,0 +1,550 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Qless — Crossword Solitaire</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Kalam:wght@400;700&family=Courier+Prime:wght@400;700&display=swap');
+
+  :root{
+    --paper: #ece0c4;
+    --paper-edge: #dccb9f;
+    --tile-face: #f1e6ca;
+    --tile-shadow: #b7a171;
+    --ink: #2b241b;
+    --red: #b23a2e;
+    --red-dark: #7f281f;
+    --rule: #ad9967;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.35), transparent 55%),
+      radial-gradient(ellipse at 85% 90%, rgba(0,0,0,0.05), transparent 50%),
+      var(--paper);
+    font-family:'Courier Prime', monospace;
+    color:var(--ink);
+    overflow-x:hidden;
+  }
+
+  /* subtle paper grain */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    opacity:0.5;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, transparent 1px, transparent 2px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.015) 0px, transparent 1px, transparent 2px);
+  }
+
+  .wrap{
+    max-width:840px;
+    margin:0 auto;
+    padding:28px 20px 60px;
+    position:relative;
+  }
+
+  /* header */
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    border-bottom:2px solid var(--rule);
+    padding-bottom:14px;
+    margin-bottom:22px;
+  }
+
+  h1{
+    font-family:'Permanent Marker', cursive;
+    color:var(--red);
+    font-size:clamp(2.2rem, 6vw, 3.4rem);
+    margin:0;
+    line-height:1;
+    letter-spacing:1px;
+    transform:rotate(-1.5deg);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.08);
+  }
+
+  .subtitle{
+    font-size:0.8rem;
+    letter-spacing:0.5px;
+    color:#5a4f3d;
+    margin-top:6px;
+  }
+
+  .stamp{
+    border:3px double var(--ink);
+    border-radius:6px;
+    padding:8px 14px;
+    text-align:center;
+    transform:rotate(2deg);
+    background:rgba(255,255,255,0.25);
+    min-width:118px;
+  }
+  .stamp .label{
+    font-size:0.62rem;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:#6b5f49;
+  }
+  .stamp .time{
+    font-family:'Courier Prime', monospace;
+    font-weight:700;
+    font-size:1.5rem;
+    letter-spacing:1px;
+  }
+
+  /* rules line */
+  .rules{
+    font-size:0.78rem;
+    color:#5a4f3d;
+    margin-bottom:18px;
+    line-height:1.5;
+  }
+  .rules b{ color:var(--ink); }
+
+  /* table / workspace */
+  #table{
+    position:relative;
+    width:100%;
+    height:420px;
+    background:
+      repeating-linear-gradient(transparent, transparent 27px, rgba(173,153,103,0.18) 28px);
+    border:2px solid var(--ink);
+    border-radius:4px;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.06);
+    touch-action:none;
+    margin-bottom:22px;
+  }
+
+  #table::before{
+    content:"workspace — drag tiles up here to build your crossword";
+    position:absolute;
+    top:8px; left:12px;
+    font-size:0.68rem;
+    color:#9a8b68;
+    letter-spacing:0.5px;
+    pointer-events:none;
+  }
+
+  .rack-label{
+    font-size:0.68rem;
+    color:#9a8b68;
+    letter-spacing:0.5px;
+    margin: 0 0 8px 2px;
+  }
+
+  #rack{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    min-height:80px;
+    padding:10px;
+    border:2px dashed var(--rule);
+    border-radius:4px;
+    background:rgba(255,255,255,0.15);
+    margin-bottom:24px;
+  }
+
+  /* tile — the signature element */
+  .tile{
+    position:relative;
+    width:56px;
+    height:56px;
+    background:var(--tile-face);
+    border:2px solid var(--ink);
+    border-radius:9px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:grab;
+    user-select:none;
+    touch-action:none;
+    box-shadow:
+      3px 3px 0 var(--tile-shadow),
+      3px 3px 0 1px var(--ink);
+    transition: box-shadow 0.08s ease, transform 0.08s ease;
+    flex-shrink:0;
+  }
+  .tile::before{
+    /* bevel highlight, top-left corner clip like the reference dice */
+    content:"";
+    position:absolute;
+    top:-2px; left:-2px;
+    width:14px; height:14px;
+    background:var(--paper-edge);
+    border-right:2px solid var(--ink);
+    border-bottom:2px solid var(--ink);
+    border-top-left-radius:8px;
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+  }
+  .tile .letter{
+    font-family:'Kalam', cursive;
+    font-weight:700;
+    font-size:1.7rem;
+    color:var(--red);
+    transform: rotate(var(--jitter, 0deg));
+  }
+  .tile.dragging{
+    cursor:grabbing;
+    z-index:50;
+    box-shadow:
+      6px 8px 10px rgba(0,0,0,0.25),
+      3px 3px 0 var(--tile-shadow),
+      3px 3px 0 1px var(--ink);
+    transform: scale(1.06) rotate(0deg) !important;
+  }
+  #table .tile{ position:absolute; }
+
+  .tile.mini{
+    width:38px;
+    height:38px;
+    cursor:default;
+    box-shadow: 2px 2px 0 var(--tile-shadow), 2px 2px 0 1px var(--ink);
+  }
+  .tile.mini::before{
+    width:10px; height:10px;
+  }
+  .tile.mini .letter{
+    font-size:1.15rem;
+  }
+
+  .example{
+    margin-top:8px;
+    border-top:2px solid var(--rule);
+    padding-top:20px;
+  }
+  .example-caption{
+    font-size:0.7rem;
+    color:#9a8b68;
+    letter-spacing:0.5px;
+    margin:6px 0 0 2px;
+  }
+  #exampleGrid{
+    display:grid;
+    grid-template-columns:repeat(6, 40px);
+    grid-template-rows:repeat(4, 40px);
+    gap:5px;
+  }
+
+  /* controls */
+  .controls{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+
+  button{
+    font-family:'Courier Prime', monospace;
+    font-weight:700;
+    letter-spacing:0.5px;
+    font-size:0.85rem;
+    padding:10px 18px;
+    border:2px solid var(--ink);
+    border-radius:5px;
+    background:var(--tile-face);
+    color:var(--ink);
+    cursor:pointer;
+    box-shadow: 2px 2px 0 var(--ink);
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+  }
+  button:active{
+    transform: translate(2px,2px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+  button.primary{
+    background:var(--red);
+    color:#f6ecd6;
+    border-color:var(--red-dark);
+    box-shadow: 2px 2px 0 var(--red-dark);
+  }
+
+  .vowel-note{
+    font-size:0.68rem;
+    color:#9a8b68;
+    margin-left:auto;
+  }
+
+  footer{
+    margin-top:30px;
+    font-size:0.7rem;
+    color:#9a8b68;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Qless</h1>
+      <div class="subtitle">a crossword solitaire, played alone, against the clock</div>
+    </div>
+    <div class="stamp">
+      <div class="label">Time</div>
+      <div class="time" id="timerDisplay">00:00</div>
+    </div>
+  </header>
+
+  <div class="rules">
+    Use all <b>12 letters</b> to build one connected crossword. Words need <b>3+ letters</b>, no proper nouns.
+    No time limit and no scoring &mdash; but the clock is watching. No Q's, ever.
+  </div>
+
+  <div id="table"></div>
+
+  <div class="rack-label">rack</div>
+  <div id="rack"></div>
+
+  <div class="controls">
+    <button class="primary" id="rollBtn">New Roll</button>
+    <button id="resetBtn">Reset Positions</button>
+    <span class="vowel-note" id="vowelNote"></span>
+  </div>
+
+  <div class="example">
+    <div class="rack-label">example solve</div>
+    <div id="exampleGrid"></div>
+    <div class="example-caption">GARDEN, crossed by RAKE and NEST — all 12 tiles, one connected board. Every tile has to land somewhere.</div>
+  </div>
+
+  <footer>built for Mini Games &mdash; letters generated, not rolled</footer>
+</div>
+
+<script>
+/* ---------- letter generator (weighted, imitates Q-Less's dice) ---------- */
+const VOWELS = { A: 9, E: 12, I: 9, O: 8, U: 4 };
+const CONSONANTS = {
+  T: 6, N: 6, R: 6, S: 6, L: 4, D: 4,
+  G: 3, H: 3, M: 3, C: 3, P: 3, B: 3, F: 3, W: 3, Y: 3,
+  V: 1, K: 1, J: 1, X: 1, Z: 1,
+};
+const MAX_COPIES = { default: 2, E: 3, A: 2 };
+
+function weightedPick(pool, excludeMaxed){
+  const entries = Object.entries(pool).filter(([l]) => !excludeMaxed.has(l));
+  const total = entries.reduce((s,[,w]) => s+w, 0);
+  let roll = Math.random() * total;
+  for (const [letter, weight] of entries){
+    roll -= weight;
+    if (roll <= 0) return letter;
+  }
+  return entries[entries.length-1][0];
+}
+
+function pickVowelCount(){
+  const r = Math.random();
+  if (r < 0.45) return 2;
+  if (r < 0.95) return 3;
+  return 4;
+}
+
+function drawLetters(pool, count){
+  const drawn = []; const counts = {};
+  while (drawn.length < count){
+    const maxed = new Set(Object.keys(counts).filter(l => counts[l] >= (MAX_COPIES[l] ?? MAX_COPIES.default)));
+    const letter = weightedPick(pool, maxed);
+    drawn.push(letter);
+    counts[letter] = (counts[letter]||0)+1;
+  }
+  return drawn;
+}
+
+function shuffle(arr){
+  const a = [...arr];
+  for (let i=a.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function rollQless(){
+  const vowelCount = pickVowelCount();
+  const consonantCount = 12 - vowelCount;
+  const vowels = drawLetters(VOWELS, vowelCount);
+  const consonants = drawLetters(CONSONANTS, consonantCount);
+  return { letters: shuffle([...vowels, ...consonants]), vowelCount };
+}
+
+/* ---------- game state / rendering ---------- */
+const rack = document.getElementById('rack');
+const table = document.getElementById('table');
+const vowelNote = document.getElementById('vowelNote');
+
+let seconds = 0;
+let timerRunning = false;
+let timerInterval = null;
+
+function formatTime(s){
+  const m = Math.floor(s/60).toString().padStart(2,'0');
+  const sec = (s%60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
+
+function startTimer(){
+  if (timerRunning) return;
+  timerRunning = true;
+  timerInterval = setInterval(() => {
+    seconds++;
+    document.getElementById('timerDisplay').textContent = formatTime(seconds);
+  }, 1000);
+}
+
+function stopTimer(){
+  timerRunning = false;
+  clearInterval(timerInterval);
+}
+
+function resetTimer(){
+  stopTimer();
+  seconds = 0;
+  document.getElementById('timerDisplay').textContent = '00:00';
+}
+
+function makeTile(letter){
+  const tile = document.createElement('div');
+  tile.className = 'tile';
+  tile.style.setProperty('--jitter', `${(Math.random()*6-3).toFixed(1)}deg`);
+  const span = document.createElement('span');
+  span.className = 'letter';
+  span.textContent = letter;
+  tile.appendChild(span);
+  attachDrag(tile);
+  return tile;
+}
+
+function newRoll(){
+  rack.innerHTML = '';
+  table.innerHTML = '';
+  resetTimer();
+  const { letters, vowelCount } = rollQless();
+  vowelNote.textContent = `this roll: ${vowelCount} vowels`;
+  letters.forEach(letter => rack.appendChild(makeTile(letter)));
+}
+
+function resetPositions(){
+  const tiles = [...table.querySelectorAll('.tile'), ...rack.querySelectorAll('.tile')];
+  rack.innerHTML = '';
+  table.innerHTML = '';
+  tiles.forEach(t => {
+    t.style.position = '';
+    t.style.left = '';
+    t.style.top = '';
+    rack.appendChild(t);
+  });
+}
+
+/* ---------- drag logic (pointer events, freeform placement on table) ---------- */
+function attachDrag(tile){
+  let offsetX, offsetY, dragging = false;
+
+  tile.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    startTimer();
+    dragging = true;
+    tile.classList.add('dragging');
+    tile.setPointerCapture(e.pointerId);
+
+    const rect = tile.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+  });
+
+  tile.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const tableRect = table.getBoundingClientRect();
+    const x = e.clientX - tableRect.left - offsetX;
+    const y = e.clientY - tableRect.top - offsetY;
+
+    const overTable =
+      e.clientX > tableRect.left && e.clientX < tableRect.right &&
+      e.clientY > tableRect.top && e.clientY < tableRect.bottom;
+
+    if (overTable){
+      if (tile.parentElement !== table){
+        table.appendChild(tile);
+        tile.style.position = 'absolute';
+      }
+      const maxX = tableRect.width - tile.offsetWidth;
+      const maxY = tableRect.height - tile.offsetHeight;
+      tile.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
+      tile.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
+    }
+  });
+
+  function endDrag(e){
+    if (!dragging) return;
+    dragging = false;
+    tile.classList.remove('dragging');
+
+    const tableRect = table.getBoundingClientRect();
+    const overTable =
+      e.clientX > tableRect.left && e.clientX < tableRect.right &&
+      e.clientY > tableRect.top && e.clientY < tableRect.bottom;
+
+    if (!overTable && tile.parentElement === table){
+      table.removeChild(tile);
+      tile.style.position = '';
+      tile.style.left = '';
+      tile.style.top = '';
+      rack.appendChild(tile);
+    }
+  }
+
+  tile.addEventListener('pointerup', endDrag);
+  tile.addEventListener('pointercancel', endDrag);
+}
+
+document.getElementById('rollBtn').addEventListener('click', newRoll);
+document.getElementById('resetBtn').addEventListener('click', resetPositions);
+
+/* ---------- static example board: SOFA / FAR / AWAY ---------- */
+function buildExample(){
+  const exampleGrid = document.getElementById('exampleGrid');
+  const placements = [
+    // GARDEN — horizontal, row 1
+    { letter:'G', row:1, col:1 },
+    { letter:'A', row:1, col:2 },
+    { letter:'R', row:1, col:3 },
+    { letter:'D', row:1, col:4 },
+    { letter:'E', row:1, col:5 },
+    { letter:'N', row:1, col:6 },
+    // RAKE — vertical, drops down through GARDEN's R
+    { letter:'A', row:2, col:3 },
+    { letter:'K', row:3, col:3 },
+    { letter:'E', row:4, col:3 },
+    // NEST — vertical, drops down through GARDEN's N
+    { letter:'E', row:2, col:6 },
+    { letter:'S', row:3, col:6 },
+    { letter:'T', row:4, col:6 },
+  ];
+  placements.forEach(({letter, row, col}) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile mini';
+    tile.style.setProperty('--jitter', `${(Math.random()*6-3).toFixed(1)}deg`);
+    tile.style.gridRow = row;
+    tile.style.gridColumn = col;
+    const span = document.createElement('span');
+    span.className = 'letter';
+    span.textContent = letter;
+    tile.appendChild(span);
+    exampleGrid.appendChild(tile);
+  });
+}
+
+newRoll();
+buildExample();
+</script>
+</body>
+</html>

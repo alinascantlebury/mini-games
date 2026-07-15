@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini Games — Alina's Palace</title>
+<style>
+  :root{
+    --green: #26a349;
+    --cream: #f3d99a;
+    --plum: #4a1440;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html,body{
+    min-height:100vh;
+    background:var(--green);
+    font-family: Georgia, 'Times New Roman', serif;
+    color:var(--plum);
+  }
+
+  .stageOuter{
+    max-width:1100px;
+    margin:0 auto;
+    padding:50px 24px 70px;
+  }
+
+  /* the hero image locked to its real aspect ratio (1628 x 966), so every
+     hotspot positioned in % below lines up with the dice underneath it
+     at any screen width */
+  .hero{
+    position:relative;
+    width:100%;
+    aspect-ratio: 1628 / 966;
+  }
+
+  .hero img{
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:contain;
+    -webkit-user-drag:none;
+    user-select:none;
+  }
+
+  /* invisible clickable regions, sized/positioned from real pixel
+     measurements of the image */
+  .hotspot{
+    position:absolute;
+    cursor:pointer;
+  }
+  .hotspot.wip{ cursor:default; }
+
+  .hotspot .plaque{
+    position:absolute;
+    left:50%; top:50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    background:var(--cream);
+    border:2px solid var(--plum);
+    padding:6px 12px;
+    font-size:0.72rem;
+    font-weight:bold;
+    letter-spacing:0.08em;
+    white-space:nowrap;
+    text-align:center;
+    color:var(--plum);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 3px 3px 0 var(--plum);
+    z-index:20;
+  }
+  .hotspot .plaque small{ display:block; font-weight:normal; font-style:italic; }
+  .hotspot:hover .plaque{ opacity:1; transform: translate(-50%, -50%) scale(1); }
+
+
+  .hotspot:hover::before{
+    box-shadow: 0 0 0 4px rgba(74,20,64,0.55);
+  }
+
+  /* measured directly from the image, as % of its 1628x966 size */
+  #hs-qless  { left:19.0%; top:1.5%;  width:21.5%; height:31.6%; }
+  #hs-wip2   { left:61.7%; top:7.2%;  width:19.0%; height:29.5%; }
+  #hs-wip3   { left:63.3%; top:33.6%; width:16.6%; height:25.4%; }
+  #hs-wip4   { left:22.4%; top:60.6%; width:22.1%; height:34.7%; }
+  #hs-wip5   { left:65.7%; top:64.2%; width:15.0%; height:29.5%; }
+
+  /* the room-flip toggle sits over MINI + GAMES together */
+  #hs-lights { left:37.8%; top:5.0%; width:26.5%; height:57.0%; cursor:pointer; }
+  #hs-lights::before{ display:none; }
+  .lightsOverlay{
+    position:absolute; inset:0;
+    background:#fff;
+    mix-blend-mode:difference;
+    opacity:0;
+    transition:opacity 0.2s ease;
+    pointer-events:none;
+  }
+  #hs-lights.toggled .lightsOverlay{ opacity:1; }
+
+  /* small shared playhtml dice, drawn in CSS, living in the green margins */
+  .toyRow{
+    display:flex;
+    justify-content:space-between;
+    max-width:640px;
+    margin:30px auto 0;
+    padding:0 10px;
+  }
+  .toy{
+    position:relative;
+    width:56px; height:56px;
+    cursor:grab;
+  }
+  .toy:active{ cursor:grabbing; }
+  .toy .back{
+    position:absolute; inset:0;
+    background:var(--plum);
+    border-radius:16%;
+    transform: translate(10%,10%);
+  }
+  .toy .front{
+    position:relative;
+    width:100%; height:100%;
+    background:var(--cream);
+    border-radius:16%;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    padding:16%;
+  }
+  .pip{ width:74%; height:74%; border-radius:50%; background:var(--plum); align-self:center; justify-self:center; }
+  .pip.c1{ grid-area:1/1; } .pip.c5{ grid-area:2/2; } .pip.c9{ grid-area:3/3; }
+
+  @media (max-width: 760px){
+    .toyRow{ display:none; }
+  }
+
+  .hint{
+    margin-top:22px;
+    text-align:center;
+    font-size:0.7rem;
+    letter-spacing:0.06em;
+    color:#eafbee;
+  }
+</style>
+</head>
+<body>
+<div class="stageOuter">
+  <div class="hero">
+    <img src="mini-games-hero.png" alt="Mini Games — Alina's Palace" />
+
+    <a class="hotspot" id="hs-qless" href="qless.html">
+      <div class="plaque">QLESS<small>play now</small></div>
+    </a>
+
+    <span class="hotspot wip" id="hs-wip2">
+      <div class="plaque">GAME TWO<small>coming soon</small></div>
+    </span>
+
+    <span class="hotspot wip" id="hs-wip3">
+      <div class="plaque">GAME THREE<small>coming soon</small></div>
+    </span>
+
+    <span class="hotspot wip" id="hs-wip4">
+      <div class="plaque">GAME FOUR<small>coming soon</small></div>
+    </span>
+
+    <span class="hotspot wip" id="hs-wip5">
+      <div class="plaque">GAME FIVE<small>coming soon</small></div>
+    </span>
+
+    <div class="hotspot" id="hs-lights" can-toggle>
+      <div class="lightsOverlay"></div>
+    </div>
+  </div>
+
+  <div class="toyRow">
+    <div class="toy" can-move id="toy-left">
+      <div class="back"></div>
+      <div class="front"><span class="pip c1"></span><span class="pip c5"></span><span class="pip c9"></span></div>
+    </div>
+    <div class="toy" can-spin id="toy-right">
+      <div class="back"></div>
+      <div class="front"><span class="pip c1"></span><span class="pip c9"></span></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    hover the dice to see each mini game &mdash; click the MINI / GAMES
+    area to flip the lights for every visitor. the two loose dice below
+    are shared too.
+  </p>
+</div>
+
+<script type="module">
+  import { playhtml } from "https://unpkg.com/playhtml";
+  playhtml.init();
+</script>
+</body>
+</html>
